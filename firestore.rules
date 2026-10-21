@@ -1,0 +1,258 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function validSalesStatus(value) {
+      return value == "prospect" || value == "contacting" || value == "active" || value == "hold" || value == "closed";
+    }
+
+    function validRevisit(rule) {
+      return rule is map
+        && rule.keys().hasOnly(["enabled", "daysAfterVisit", "leadDays"])
+        && rule.enabled is bool
+        && rule.daysAfterVisit is int
+        && rule.daysAfterVisit >= 1
+        && rule.daysAfterVisit <= 3650
+        && rule.leadDays is int
+        && rule.leadDays >= 0
+        && rule.leadDays <= 365
+        && rule.leadDays <= rule.daysAfterVisit;
+    }
+
+    function validUser(data) {
+      return data.keys().hasOnly(["email", "displayName", "createdAt", "updatedAt"])
+        && data.email is string
+        && data.displayName is string
+        && data.email.size() <= 200
+        && data.displayName.size() <= 80
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function validAccount(data) {
+      return data.keys().hasOnly([
+          "name", "address", "lat", "lng", "industry", "phone", "tags", "memo",
+          "salesStatus", "archived", "contactSearchText", "primaryContactName",
+          "templateIds", "defaultTemplateId", "lastVisitAt", "visitCount",
+          "createdAt", "updatedAt"
+        ])
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 120
+        && data.address is string
+        && data.address.size() <= 300
+        && data.lat is number
+        && data.lat >= -90
+        && data.lat <= 90
+        && data.lng is number
+        && data.lng >= -180
+        && data.lng <= 180
+        && data.industry is string
+        && data.industry.size() <= 80
+        && data.phone is string
+        && data.phone.size() <= 40
+        && data.tags is list
+        && data.tags.size() <= 20
+        && data.memo is string
+        && data.memo.size() <= 4000
+        && validSalesStatus(data.salesStatus)
+        && data.archived is bool
+        && data.contactSearchText is string
+        && data.contactSearchText.size() <= 2000
+        && data.primaryContactName is string
+        && data.primaryContactName.size() <= 80
+        && data.templateIds is list
+        && data.templateIds.size() <= 20
+        && (data.defaultTemplateId == null || (data.defaultTemplateId is string && data.templateIds.hasAny([data.defaultTemplateId])))
+        && (data.lastVisitAt == null || data.lastVisitAt is timestamp)
+        && data.visitCount is int
+        && data.visitCount >= 0
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function validContact(data) {
+      return data.keys().hasOnly(["accountId", "name", "role", "department", "phone", "email", "memo", "isPrimary", "active", "createdAt", "updatedAt"])
+        && data.accountId is string
+        && data.accountId.size() > 0
+        && data.accountId.size() <= 120
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 80
+        && data.role is string
+        && data.role.size() <= 80
+        && data.department is string
+        && data.department.size() <= 80
+        && data.phone is string
+        && data.phone.size() <= 40
+        && data.email is string
+        && data.email.size() <= 200
+        && data.memo is string
+        && data.memo.size() <= 2000
+        && data.isPrimary is bool
+        && data.active is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function validTemplate(data) {
+      return data.keys().hasOnly(["name", "description", "archived", "currentVersionId", "currentVersionNumber", "revisitRule", "createdAt", "updatedAt"])
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 80
+        && data.description is string
+        && data.description.size() <= 400
+        && data.archived is bool
+        && data.currentVersionId is string
+        && data.currentVersionId.size() > 0
+        && data.currentVersionNumber is int
+        && data.currentVersionNumber >= 1
+        && validRevisit(data.revisitRule)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function validVersion(data) {
+      return data.keys().hasOnly(["versionNumber", "name", "description", "fields", "revisitRule", "createdAt"])
+        && data.versionNumber is int
+        && data.versionNumber >= 1
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 80
+        && data.description is string
+        && data.description.size() <= 400
+        && data.fields is list
+        && data.fields.size() <= 40
+        && validRevisit(data.revisitRule)
+        && data.createdAt is timestamp;
+    }
+
+    function validLink(data) {
+      return data.keys().hasOnly(["accountId", "templateId", "createdAt"])
+        && data.accountId is string
+        && data.templateId is string
+        && data.accountId.size() > 0
+        && data.templateId.size() > 0
+        && data.createdAt is timestamp;
+    }
+
+    function validSettings(data) {
+      return data.keys().hasOnly(["recentDays", "normalDays", "warningDays", "updatedAt"])
+        && data.recentDays is int
+        && data.normalDays is int
+        && data.warningDays is int
+        && data.recentDays >= 0
+        && data.normalDays > data.recentDays
+        && data.warningDays > data.normalDays
+        && data.warningDays <= 3650
+        && data.updatedAt is timestamp;
+    }
+
+    function validDraft(data) {
+      return data.keys().hasOnly(["accountId", "visitId", "payload", "updatedAt"])
+        && data.accountId is string
+        && data.visitId is string
+        && data.payload is map
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validUser(request.resource.data);
+      allow update: if isOwner(uid)
+        && validUser(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+
+      match /accounts/{accountId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && validAccount(request.resource.data)
+          && request.resource.data.visitCount == 0
+          && request.resource.data.lastVisitAt == null
+          && request.resource.data.archived == false
+          && request.resource.data.templateIds.size() == 0
+          && request.resource.data.defaultTemplateId == null
+          && request.resource.data.contactSearchText == "";
+        allow update: if isOwner(uid)
+          && validAccount(request.resource.data)
+          && request.resource.data.visitCount == resource.data.visitCount
+          && request.resource.data.lastVisitAt == resource.data.lastVisitAt
+          && request.resource.data.archived == resource.data.archived
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if false;
+      }
+
+      match /contacts/{contactId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && validContact(request.resource.data);
+        allow update: if isOwner(uid)
+          && validContact(request.resource.data)
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.accountId == resource.data.accountId;
+        allow delete: if false;
+      }
+
+      match /templates/{templateId} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validTemplate(request.resource.data);
+        allow delete: if false;
+
+        match /versions/{versionId} {
+          allow read: if isOwner(uid);
+          allow create: if isOwner(uid) && validVersion(request.resource.data);
+          allow update, delete: if false;
+        }
+      }
+
+      match /accountTemplateLinks/{linkId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && validLink(request.resource.data);
+        allow delete: if isOwner(uid);
+        allow update: if false;
+      }
+
+      match /visits/{visitId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      match /reminders/{reminderId} {
+        allow read: if isOwner(uid);
+        allow create, delete: if false;
+        allow update: if isOwner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"])
+          && request.resource.data.read is bool;
+      }
+
+      match /revisitStates/{stateId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      match /idempotency/{requestId} {
+        allow read, write: if false;
+      }
+
+      match /drafts/{draftId} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validDraft(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+
+      match /settings/{settingsId} {
+        allow read: if isOwner(uid) && settingsId == "preferences";
+        allow create, update: if isOwner(uid) && settingsId == "preferences" && validSettings(request.resource.data);
+        allow delete: if false;
+      }
+    }
+  }
+}

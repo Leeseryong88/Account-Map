@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+dist
+coverage
+functions/lib
+functions/node_modules
+.firebase
+*.log
+.env
+.env.local
+.env.*.local
+tsconfig.tsbuildinfo
