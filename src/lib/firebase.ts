@@ -35,6 +35,7 @@ export function getFirebase() {
       appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:000000000000:web:demo",
       messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "000000000000",
       storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
     });
     auth = getAuth(app);
     db = getFirestore(app);

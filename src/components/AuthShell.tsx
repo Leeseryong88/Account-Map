@@ -6,7 +6,7 @@ const POINTS = [
   { icon: BellRing, text: "다음 연락일은 알림으로" },
 ];
 
-export function AuthShell({ title, description, children, footer }: { title: string; description: string; children: React.ReactNode; footer: React.ReactNode }) {
+export function AuthShell({ title, description, children, footer }: { title: string; description: string; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1fr_minmax(480px,1fr)]">
       <section className="relative hidden overflow-hidden bg-[#1f3fa8] p-12 text-white lg:flex lg:flex-col lg:justify-between">
@@ -41,7 +41,7 @@ export function AuthShell({ title, description, children, footer }: { title: str
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           <p className="mt-1.5 text-sm text-subtle">{description}</p>
           <div className="mt-7">{children}</div>
-          <div className="mt-6 text-center text-sm text-subtle">{footer}</div>
+          {footer ? <div className="mt-6 text-center text-sm text-subtle">{footer}</div> : null}
         </div>
       </section>
     </main>
